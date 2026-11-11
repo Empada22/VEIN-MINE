@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "veinminer",
+  "version": "${version}",
+  "name": "Vein Miner",
+  "description": "Agachado, quebrou um minerio ou pedra com a picareta e o veio inteiro vem junto.",
+  "authors": ["Voce"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.example.veinminer.VeinMiner"]
+  },
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "minecraft": "~26.3",
+    "java": ">=25",
+    "fabric-api": "*"
+  }
+}
