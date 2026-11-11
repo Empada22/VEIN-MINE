@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Predicate;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
@@ -13,12 +14,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.ItemTags;
-import net.minecraft.tags.TagKey;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 
@@ -41,17 +41,18 @@ public class VeinMiner implements ModInitializer {
     private static final int MAX_BLOCKS = 64;
 
     /** Grupos de blocos considerados "o mesmo veio" (ex.: ferro normal + ferro deepslate). */
-    private static final List<TagKey<Block>> GROUPS = List.of(
-            BlockTags.COAL_ORES,
-            BlockTags.IRON_ORES,
-            BlockTags.COPPER_ORES,
-            BlockTags.GOLD_ORES,
-            BlockTags.REDSTONE_ORES,
-            BlockTags.LAPIS_ORES,
-            BlockTags.DIAMOND_ORES,
-            BlockTags.EMERALD_ORES,
-            BlockTags.BASE_STONE_OVERWORLD,
-            BlockTags.BASE_STONE_NETHER
+    private static final List<Predicate<BlockState>> GROUPS = List.of(
+            s -> s.is(Blocks.COAL_ORE) || s.is(Blocks.DEEPSLATE_COAL_ORE),
+            s -> s.is(BlockTags.IRON_ORES),
+            s -> s.is(BlockTags.COPPER_ORES),
+            s -> s.is(BlockTags.GOLD_ORES),
+            s -> s.is(Blocks.REDSTONE_ORE) || s.is(Blocks.DEEPSLATE_REDSTONE_ORE),
+            s -> s.is(Blocks.LAPIS_ORE) || s.is(Blocks.DEEPSLATE_LAPIS_ORE),
+            s -> s.is(Blocks.DIAMOND_ORE) || s.is(Blocks.DEEPSLATE_DIAMOND_ORE),
+            s -> s.is(Blocks.EMERALD_ORE) || s.is(Blocks.DEEPSLATE_EMERALD_ORE),
+            s -> s.is(Blocks.NETHER_QUARTZ_ORE),
+            s -> s.is(BlockTags.BASE_STONE_OVERWORLD),
+            s -> s.is(BlockTags.BASE_STONE_NETHER)
     );
 
     /** Evita o evento disparar de novo enquanto a gente mesmo quebra os blocos. */
@@ -68,7 +69,7 @@ public class VeinMiner implements ModInitializer {
         if (!(player instanceof ServerPlayer)) return;
         if (REQUIRE_SNEAK && !player.isShiftKeyDown()) return;
 
-        TagKey<Block> group = groupOf(state);
+        Predicate<BlockState> group = groupOf(state);
         if (group == null) return;
 
         ItemStack tool = player.getMainHandItem();
@@ -98,7 +99,7 @@ public class VeinMiner implements ModInitializer {
     }
 
     /** Flood fill (26 vizinhos) a partir do bloco quebrado, so por blocos do mesmo grupo. */
-    private static List<BlockPos> findVein(ServerLevel level, BlockPos origin, TagKey<Block> group,
+    private static List<BlockPos> findVein(ServerLevel level, BlockPos origin, Predicate<BlockState> group,
                                            ItemStack tool, boolean creative) {
         Set<BlockPos> visited = new HashSet<>();
         ArrayDeque<BlockPos> queue = new ArrayDeque<>();
@@ -119,7 +120,7 @@ public class VeinMiner implements ModInitializer {
                         if (!visited.add(next)) continue;
 
                         BlockState nextState = level.getBlockState(next);
-                        if (!nextState.is(group)) continue;
+                        if (!group.test(nextState)) continue;
                         if (!creative && !tool.isCorrectToolForDrops(nextState)) continue;
 
                         result.add(next);
@@ -134,9 +135,9 @@ public class VeinMiner implements ModInitializer {
         return result;
     }
 
-    private static TagKey<Block> groupOf(BlockState state) {
-        for (TagKey<Block> group : GROUPS) {
-            if (state.is(group)) return group;
+    private static Predicate<BlockState> groupOf(BlockState state) {
+        for (Predicate<BlockState> group : GROUPS) {
+            if (group.test(state)) return group;
         }
         return null;
     }
